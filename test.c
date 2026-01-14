@@ -32,7 +32,7 @@
 
 
 void basic() {
-    genann *ann = genann_init(1, 0, 0, 1);
+    genann *ann = genann_init(1, 0, 0, 1, GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
 
     lequal(ann->total_weights, 2);
     double a;
@@ -67,7 +67,7 @@ void basic() {
 
 
 void xor() {
-    genann *ann = genann_init(2, 1, 2, 1);
+    genann *ann = genann_init(2, 1, 2, 1, GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
     ann->activation_hidden = genann_act_threshold;
     ann->activation_output = genann_act_threshold;
 
@@ -102,7 +102,7 @@ void xor() {
 
 
 void backprop() {
-    genann *ann = genann_init(1, 0, 0, 1);
+    genann *ann = genann_init(1, 0, 0, 1, GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
 
     double input, output;
     input = .5;
@@ -121,7 +121,7 @@ void train_and() {
     double input[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
     double output[4] = {0, 0, 0, 1};
 
-    genann *ann = genann_init(2, 0, 0, 1);
+    genann *ann = genann_init(2, 0, 0, 1, GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
 
     int i, j;
 
@@ -145,7 +145,7 @@ void train_or() {
     double input[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
     double output[4] = {0, 1, 1, 1};
 
-    genann *ann = genann_init(2, 0, 0, 1);
+    genann *ann = genann_init(2, 0, 0, 1, GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
     genann_randomize(ann);
 
     int i, j;
@@ -171,7 +171,7 @@ void train_xor() {
     double input[4][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
     double output[4] = {0, 1, 1, 0};
 
-    genann *ann = genann_init(2, 1, 2, 1);
+    genann *ann = genann_init(2, 1, 2, 1, GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
 
     int i, j;
 
@@ -194,7 +194,7 @@ void train_xor() {
 
 
 void persist() {
-    genann *first = genann_init(1000, 5, 50, 10);
+    genann *first = genann_init(1000, 5, 50, 10, GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
 
     FILE *out = fopen("persist.txt", "w");
     genann_write(first, out);
@@ -222,7 +222,7 @@ void persist() {
 
 
 void copy() {
-    genann *first = genann_init(1000, 5, 50, 10);
+    genann *first = genann_init(1000, 5, 50, 10, GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
 
     genann *second = genann_copy(first);
 

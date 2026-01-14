@@ -32,23 +32,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef genann_act
-#define genann_act_hidden genann_act_hidden_indirect
-#define genann_act_output genann_act_output_indirect
-#else
-#define genann_act_hidden genann_act
-#define genann_act_output genann_act
-#endif
 
 #define LOOKUP_SIZE 4096
 
-double genann_act_hidden_indirect(const struct genann *ann, double a) {
-    return ann->activation_hidden(ann, a);
-}
-
-double genann_act_output_indirect(const struct genann *ann, double a) {
-    return ann->activation_output(ann, a);
-}
 
 const double sigmoid_dom_min = -15.0;
 const double sigmoid_dom_max = 15.0;
@@ -71,6 +57,12 @@ double genann_act_sigmoid(const genann *ann unused, double a) {
     if (a < -45.0) return 0;
     if (a > 45.0) return 1;
     return 1.0 / (1 + exp(-a));
+}
+
+double genann_act_sigmoid_deriv(const genann *ann unused, double a) {
+    /* Derivative of sigmoid: f'(x) = f(x) * (1 - f(x)) */
+    /* 'a' is the output value f(x), not the input */
+    return a * (1.0 - a);
 }
 
 void genann_init_sigmoid_lookup(const genann *ann) {
@@ -101,11 +93,67 @@ double genann_act_linear(const struct genann *ann unused, double a) {
     return a;
 }
 
+double genann_act_linear_deriv(const struct genann *ann unused, double a) {
+    /* Derivative of linear: f'(x) = 1 */
+    (void)a; /* Unused parameter */
+    return 1.0;
+}
+
 double genann_act_threshold(const struct genann *ann unused, double a) {
     return a > 0;
 }
 
-genann *genann_init(int inputs, int hidden_layers, int hidden, int outputs) {
+double genann_act_threshold_deriv(const struct genann *ann unused, double a) {
+    /* Derivative of threshold: f'(x) = 0 (not differentiable at x=0) */
+    (void)a; /* Unused parameter */
+    return 0.0;
+}
+
+double genann_act_relu(const struct genann *ann unused, double a) {
+    return a > 0 ? a : 0;
+}
+
+double genann_act_relu_deriv(const struct genann *ann unused, double a) {
+    /* Derivative of ReLU: f'(x) = 1 if x > 0, else 0 */
+    /* 'a' is the output value f(x), not the input */
+    return a > 0 ? 1.0 : 0.0;
+}
+
+/* Helper function to get activation function and its derivative from enum */
+static void genann_get_activation_functions(genann_activation type,
+                                           genann_actfun *act_func,
+                                           genann_actfun *act_deriv) {
+    switch (type) {
+        case GENANN_ACT_SIGMOID:
+            *act_func = genann_act_sigmoid;
+            *act_deriv = genann_act_sigmoid_deriv;
+            break;
+        case GENANN_ACT_SIGMOID_CACHED:
+            *act_func = genann_act_sigmoid_cached;
+            *act_deriv = genann_act_sigmoid_deriv;
+            break;
+        case GENANN_ACT_RELU:
+            *act_func = genann_act_relu;
+            *act_deriv = genann_act_relu_deriv;
+            break;
+        case GENANN_ACT_LINEAR:
+            *act_func = genann_act_linear;
+            *act_deriv = genann_act_linear_deriv;
+            break;
+        case GENANN_ACT_THRESHOLD:
+            *act_func = genann_act_threshold;
+            *act_deriv = genann_act_threshold_deriv;
+            break;
+        default:
+            /* Default to sigmoid cached */
+            *act_func = genann_act_sigmoid_cached;
+            *act_deriv = genann_act_sigmoid_deriv;
+            break;
+    }
+}
+
+genann *genann_init(int inputs, int hidden_layers, int hidden, int outputs,
+                    genann_activation activation_hidden, genann_activation activation_output) {
     if (hidden_layers < 0) return 0;
     if (inputs < 1) return 0;
     if (outputs < 1) return 0;
@@ -138,8 +186,13 @@ genann *genann_init(int inputs, int hidden_layers, int hidden, int outputs) {
 
     genann_randomize(ret);
 
-    ret->activation_hidden = genann_act_sigmoid_cached;
-    ret->activation_output = genann_act_sigmoid_cached;
+    /* Set activation functions based on enum types */
+    genann_get_activation_functions(activation_hidden,
+                                    &ret->activation_hidden,
+                                    &ret->activation_hidden_deriv);
+    genann_get_activation_functions(activation_output,
+                                    &ret->activation_output,
+                                    &ret->activation_output_deriv);
 
     genann_init_sigmoid_lookup(ret);
 
@@ -158,7 +211,8 @@ genann *genann_read(FILE *in) {
         return NULL;
     }
 
-    genann *ann = genann_init(inputs, hidden_layers, hidden, outputs);
+    genann *ann = genann_init(inputs, hidden_layers, hidden, outputs,
+                              GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
 
     int i;
     for (i = 0; i < ann->total_weights; ++i) {
@@ -226,7 +280,7 @@ double const *genann_run(genann const *ann, double const *inputs) {
             for (k = 0; k < ann->inputs; ++k) {
                 sum += *w++ * i[k];
             }
-            *o++ = genann_act_output(ann, sum);
+            *o++ = ann->activation_output(ann, sum);
         }
 
         return ret;
@@ -238,7 +292,7 @@ double const *genann_run(genann const *ann, double const *inputs) {
         for (k = 0; k < ann->inputs; ++k) {
             sum += *w++ * i[k];
         }
-        *o++ = genann_act_hidden(ann, sum);
+        *o++ = ann->activation_hidden(ann, sum);
     }
 
     i += ann->inputs;
@@ -250,7 +304,7 @@ double const *genann_run(genann const *ann, double const *inputs) {
             for (k = 0; k < ann->hidden; ++k) {
                 sum += *w++ * i[k];
             }
-            *o++ = genann_act_hidden(ann, sum);
+            *o++ = ann->activation_hidden(ann, sum);
         }
 
         i += ann->hidden;
@@ -264,7 +318,7 @@ double const *genann_run(genann const *ann, double const *inputs) {
         for (k = 0; k < ann->hidden; ++k) {
             sum += *w++ * i[k];
         }
-        *o++ = genann_act_output(ann, sum);
+        *o++ = ann->activation_output(ann, sum);
     }
 
     /* Sanity check that we used all weights and wrote all outputs. */
@@ -289,16 +343,10 @@ void genann_train(genann const *ann, double const *inputs, double const *desired
 
 
         /* Set output layer deltas. */
-        if (genann_act_output == genann_act_linear ||
-                ann->activation_output == genann_act_linear) {
-            for (j = 0; j < ann->outputs; ++j) {
-                *d++ = *t++ - *o++;
-            }
-        } else {
-            for (j = 0; j < ann->outputs; ++j) {
-                *d++ = (*t - *o) * *o * (1.0 - *o);
-                ++o; ++t;
-            }
+        for (j = 0; j < ann->outputs; ++j) {
+            /* Use derivative function: delta = error * f'(output) */
+            *d++ = (*t - *o) * ann->activation_output_deriv(ann, *o);
+            ++o; ++t;
         }
     }
 
@@ -328,7 +376,8 @@ void genann_train(genann const *ann, double const *inputs, double const *desired
                 delta += forward_delta * forward_weight;
             }
 
-            *d = *o * (1.0-*o) * delta;
+            /* Use derivative function: delta = f'(output) * weighted_sum */
+            *d = ann->activation_hidden_deriv(ann, *o) * delta;
             ++d; ++o;
         }
     }

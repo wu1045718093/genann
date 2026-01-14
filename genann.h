@@ -43,6 +43,15 @@ struct genann;
 
 typedef double (*genann_actfun)(const struct genann *ann, double a);
 
+/* Activation function types */
+typedef enum {
+    GENANN_ACT_SIGMOID = 0,        /* Sigmoid activation (default) */
+    GENANN_ACT_SIGMOID_CACHED,     /* Cached sigmoid activation (faster) */
+    GENANN_ACT_RELU,               /* ReLU activation */
+    GENANN_ACT_LINEAR,             /* Linear activation */
+    GENANN_ACT_THRESHOLD           /* Threshold activation */
+} genann_activation;
+
 typedef struct genann {
     /* How many inputs, outputs, and hidden neurons. */
     int inputs, hidden_layers, hidden, outputs;
@@ -52,6 +61,12 @@ typedef struct genann {
 
     /* Which activation function to use for output. Default: gennann_act_sigmoid_cached*/
     genann_actfun activation_output;
+
+    /* Derivative of activation function for hidden neurons. */
+    genann_actfun activation_hidden_deriv;
+
+    /* Derivative of activation function for output neurons. */
+    genann_actfun activation_output_deriv;
 
     /* Total number of weights, and size of weights buffer. */
     int total_weights;
@@ -71,7 +86,8 @@ typedef struct genann {
 } genann;
 
 /* Creates and returns a new ann. */
-genann *genann_init(int inputs, int hidden_layers, int hidden, int outputs);
+genann *genann_init(int inputs, int hidden_layers, int hidden, int outputs,
+                    genann_activation activation_hidden, genann_activation activation_output);
 
 /* Creates ANN from file saved with genann_write. */
 genann *genann_read(FILE *in);
@@ -99,6 +115,13 @@ double genann_act_sigmoid(const genann *ann, double a);
 double genann_act_sigmoid_cached(const genann *ann, double a);
 double genann_act_threshold(const genann *ann, double a);
 double genann_act_linear(const genann *ann, double a);
+double genann_act_relu(const genann *ann, double a);
+
+/* Derivative functions for activation functions */
+double genann_act_sigmoid_deriv(const genann *ann, double a);
+double genann_act_linear_deriv(const genann *ann, double a);
+double genann_act_threshold_deriv(const genann *ann, double a);
+double genann_act_relu_deriv(const genann *ann, double a);
 
 
 #ifdef __cplusplus

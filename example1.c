@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     /* New network with 2 inputs,
      * 1 hidden layer of 2 neurons,
      * and 1 output. */
-    genann *ann = genann_init(2, 1, 2, 1);
+    genann *ann = genann_init(2, 1, 2, 1, GENANN_ACT_SIGMOID_CACHED, GENANN_ACT_SIGMOID_CACHED);
 
     /* Train on the four labeled data points many times. */
     for (i = 0; i < 500; ++i) {

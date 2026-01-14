@@ -16,6 +16,7 @@ functions and little extra.
 - Simple.
 - Fast and thread-safe.
 - Easily extendible.
+- **Supports multiple activation functions** (Sigmoid, ReLU, Linear, Threshold).
 - Implements backpropagation training.
 - *Compatible with alternative training methods* (classic optimization, genetic algorithms, etc)
 - Includes examples and test suite.
@@ -52,8 +53,9 @@ double **training_data_input, **training_data_output, **test_data_input;
 
 /* New network with 2 inputs,
  * 1 hidden layer of 3 neurons each,
- * and 2 outputs. */
-genann *ann = genann_init(2, 1, 3, 2);
+ * and 2 outputs.
+ * Uses ReLU for hidden layer and Sigmoid for output. */
+genann *ann = genann_init(2, 1, 3, 2, GENANN_ACT_RELU, GENANN_ACT_SIGMOID_CACHED);
 
 /* Learn on the training set. */
 for (i = 0; i < 300; ++i) {
@@ -78,14 +80,33 @@ over-fitting.
 
 ### Creating and Freeing ANNs
 ```C
-genann *genann_init(int inputs, int hidden_layers, int hidden, int outputs);
+genann *genann_init(int inputs, int hidden_layers, int hidden, int outputs,
+                    genann_activation activation_hidden, 
+                    genann_activation activation_output);
 genann *genann_copy(genann const *ann);
 void genann_free(genann *ann);
 ```
 
 Creating a new ANN is done with the `genann_init()` function. Its arguments
 are the number of inputs, the number of hidden layers, the number of neurons in
-each hidden layer, and the number of outputs. It returns a `genann` struct pointer.
+each hidden layer, the number of outputs, the activation function for hidden layers,
+and the activation function for the output layer. It returns a `genann` struct pointer.
+
+**Available activation functions:**
+- `GENANN_ACT_SIGMOID` - Standard sigmoid activation
+- `GENANN_ACT_SIGMOID_CACHED` - Cached sigmoid (faster, recommended)
+- `GENANN_ACT_RELU` - ReLU activation (recommended for hidden layers)
+- `GENANN_ACT_LINEAR` - Linear activation (for regression output)
+- `GENANN_ACT_THRESHOLD` - Threshold activation
+
+**Example:**
+```C
+// For classification tasks
+genann *ann = genann_init(2, 1, 4, 1, GENANN_ACT_RELU, GENANN_ACT_SIGMOID_CACHED);
+
+// For regression tasks
+genann *ann = genann_init(2, 1, 4, 1, GENANN_ACT_RELU, GENANN_ACT_LINEAR);
+```
 
 Calling `genann_copy()` will create a deep-copy of an existing `genann` struct.
 
@@ -133,6 +154,27 @@ double const *genann_run(genann const *ann, double const *inputs);
 Call `genann_run()` on a trained ANN to run a feed-forward pass on a given set of inputs. `genann_run()`
 will provide a pointer to the array of predicted outputs (of `ann->outputs` length).
 
+## Activation Functions
+
+Genann supports multiple activation functions that can be specified when creating a neural network:
+
+### Available Activation Functions
+
+| Function | Description | Best Used For |
+|----------|-------------|---------------|
+| `GENANN_ACT_SIGMOID` | Standard sigmoid: σ(x) = 1/(1+e^-x) | Binary classification output |
+| `GENANN_ACT_SIGMOID_CACHED` | Cached sigmoid (faster) | Default choice, general purpose |
+| `GENANN_ACT_RELU` | ReLU: f(x) = max(0, x) | Hidden layers (recommended) |
+| `GENANN_ACT_LINEAR` | Linear: f(x) = x | Regression output layer |
+| `GENANN_ACT_THRESHOLD` | Step function: f(x) = x > 0 ? 1 : 0 | Binary output (non-trainable) |
+
+### Recommended Configurations
+
+**For classification tasks:**
+```C
+genann *ann = genann_init(inputs, layers, hidden, outputs,
+                          GENANN_ACT_RELU, GENANN_ACT_SIGMOID_CACHED);
+```
 
 ## Hints
 
